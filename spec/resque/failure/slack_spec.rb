@@ -6,30 +6,18 @@ describe Resque::Failure::Slack do
       expect(described_class.configured?).to be_falsey
     end
 
-    it 'fails without token' do
+    it 'fails without webhook' do
       expect {
         Resque::Failure::Slack.configure do |config|
-          config.channel = 'CHANNEL_ID'
-          config.token = nil
+          config.webhook = nil
         end
       }.to raise_error RuntimeError
       expect(described_class.configured?).to be_falsey
     end
 
-    it 'fails without channel' do
-      expect {
-        Resque::Failure::Slack.configure do |config|
-          config.channel = nil
-          config.token = 'TOKEN'
-        end
-      }.to raise_error RuntimeError
-      expect(described_class.configured?).to be_falsey
-    end
-
-    it 'succeed with a channel and a token' do
+    it 'succeed with a webhook' do
       Resque::Failure::Slack.configure do |config|
-        config.channel = 'CHANNEL_ID'
-        config.token = 'TOKEN'
+        config.webhook = 'WEBHOOK'
       end
       expect(described_class.configured?).to be_truthy
     end
@@ -41,8 +29,7 @@ describe Resque::Failure::Slack do
 
       described_class::LEVELS.each do |level|
         Resque::Failure::Slack.configure do |config|
-          config.channel = 'CHANNEL_ID'
-          config.token = 'TOKEN'
+          config.webhook = 'WEBHOOK'
           config.level = level
         end
         expect(Resque::Failure::Notification).to receive(:generate).with(slack, level)
@@ -56,8 +43,7 @@ describe Resque::Failure::Slack do
       slack = described_class.new('exception', 'worker', 'queue', 'payload')
 
       Resque::Failure::Slack.configure do |config|
-        config.channel = 'CHANNEL_ID'
-        config.token = 'TOKEN'
+        config.webhook = 'WEBHOOK'
       end
 
       expect(slack).to receive(:report_exception)
@@ -68,16 +54,16 @@ describe Resque::Failure::Slack do
   context 'report_exception' do
     it 'sends a notification to Slack' do
       slack = described_class.new('exception', 'worker', 'queue', 'payload')
+      webhook = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
 
       Resque::Failure::Slack.configure do |config|
-        config.channel = 'CHANNEL_ID'
-        config.token = 'TOKEN'
+        config.webhook = webhook
         config.level = :minimal
       end
 
-      uri = URI.parse(described_class::SLACK_URL + '/chat.postMessage')
+      uri = URI.parse(webhook)
       text = Resque::Failure::Notification.generate(slack, :minimal)
-      params = { 'channel' => 'CHANNEL_ID', 'token' => 'TOKEN', 'text' => text }
+      params = { 'text' => text }
 
       expect(Net::HTTP).to receive(:post_form)
         .with(uri, params)
