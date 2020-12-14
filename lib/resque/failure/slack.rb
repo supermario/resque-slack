@@ -6,11 +6,9 @@ module Resque
   module Failure
     class Slack < Base
       LEVELS = %i(verbose compact minimal)
-      SLACK_URL = 'https://slack.com/api'
 
       class << self
-        attr_accessor :channel # Slack channel id.
-        attr_accessor :token   # Team token
+        attr_accessor :webhook # Slack incoming webhool
 
         # Notification style:
         #
@@ -25,13 +23,12 @@ module Resque
       end
 
       # Configures the failure backend. You will need to set
-      # a channel id and a team token.
+      # the slack incoming webhook.
       #
       # @example Configure your Slack account:
       #   Resque::Failure::Slack.configure do |config|
-      #     config.channel = 'CHANNEL_ID'
-      #     config.token = 'TOKEN'
-      #     config.verbose = true or false, true is the default
+      #     config.webhook = 'WEBHOOK'
+      #     config.level = 'verbose', 'compact' or 'minimal'
       #   end
       def self.configure
         yield self
@@ -39,7 +36,7 @@ module Resque
       end
 
       def self.configured?
-        !!channel && !!token
+        !!webhook
       end
 
       # Sends the exception data to the Slack channel.
@@ -54,9 +51,9 @@ module Resque
       # Sends a HTTP Post to the Slack api.
       #
       def report_exception
-        uri = URI.parse(SLACK_URL + '/chat.postMessage')
-        params = { 'channel' => self.class.channel, 'token' => self.class.token, 'text' => text }
-        Net::HTTP.post_form(uri, params)
+        uri = URI.parse(self.class.webhook)
+        params = { 'text' => text }
+        Net::HTTP.post(uri, params.to_json, "Content-Type" => "application/json")
       end
 
       # Text to be displayed in the Slack notification
